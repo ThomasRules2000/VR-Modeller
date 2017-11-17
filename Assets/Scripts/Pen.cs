@@ -6,7 +6,13 @@ using UnityEngine.UI;
 public class Pen : MonoBehaviour {
 
     SteamVR_TrackedController controller;
+
     PrimitiveType currentPrimitiveType = PrimitiveType.Sphere;
+    GameObject preview;
+    public Material previewMaterial;
+
+    ModifiableObject currentObject;
+    public Transform objectParentTransform;
 
     RaycastHit hitInfo;
     bool isPointingAtObject = false;
@@ -18,7 +24,8 @@ public class Pen : MonoBehaviour {
 	void Start ()
     {
         line = GetComponent<LineRenderer>();
-	}
+        DisplayPreview();
+    }
 	
 	// Update is called once per frame
 	void Update ()
@@ -58,11 +65,15 @@ public class Pen : MonoBehaviour {
         {
             GetPointedAt();
         }
+        else
+        {
+            SpawnSelectedAtController();
+        }
     }
 
     void HandlePadClicked(object sender, ClickedEventArgs e)
     {
-        SpawnSelectedAtController();
+        //SpawnSelectedAtController();
     }
 
     void HandleGripped(object sender, ClickedEventArgs e)
@@ -72,10 +83,23 @@ public class Pen : MonoBehaviour {
 
     void GetPointedAt()
     {
-        Button butt = hitInfo.transform.GetComponent<Button>();
+        PrimitiveButton butt = hitInfo.transform.GetComponent<PrimitiveButton>();
         if (butt != null)
         {
-            butt.onClick.Invoke();
+            currentPrimitiveType = butt.SelectType();
+            DisplayPreview();
+        }
+        else
+        {
+            ModifiableObject mo = hitInfo.transform.GetComponent<ModifiableObject>();
+            if(mo != null)
+            {
+                currentObject = mo;
+            }
+            else if(!hitInfo.transform.GetComponent<Image>())
+            {
+                SpawnSelectedAtController();
+            }
         }
     }
 
@@ -86,25 +110,24 @@ public class Pen : MonoBehaviour {
         spawnedPrimitive.transform.rotation = transform.rotation;
 
         spawnedPrimitive.transform.localScale = new Vector3(0.1f, 0.1f, 0.1f);
+
+        spawnedPrimitive.AddComponent<ModifiableObject>();
+        spawnedPrimitive.transform.parent = objectParentTransform;
     }
 
-    public void SelectCube()
+    public void DisplayPreview()
     {
-        currentPrimitiveType = PrimitiveType.Cube;
-    }
+        if (preview)
+        {
+            Destroy(preview);
+        }
+        preview = GameObject.CreatePrimitive(currentPrimitiveType);
+        preview.transform.position = transform.position;
+        preview.transform.rotation = transform.rotation;
+        preview.transform.localScale = new Vector3(0.1f, 0.1f, 0.1f);
+        preview.transform.parent = transform;
 
-    public void SelectSphere()
-    {
-        currentPrimitiveType = PrimitiveType.Sphere;
-    }
-
-    public void SelectCylinder()
-    {
-        currentPrimitiveType = PrimitiveType.Cylinder;
-    }
-
-    public void SelectCapsule()
-    {
-        currentPrimitiveType = PrimitiveType.Capsule;
+        Renderer renderer = preview.GetComponent<Renderer>();
+        renderer.material = previewMaterial;
     }
 }
