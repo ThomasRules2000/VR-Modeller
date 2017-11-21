@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using Valve.VR;
 
 public class Pen : MonoBehaviour {
 
@@ -10,6 +11,22 @@ public class Pen : MonoBehaviour {
     PrimitiveType currentPrimitiveType = PrimitiveType.Sphere;
     GameObject preview;
     public Material previewMaterial;
+    Renderer previewRenderer;
+    VRButton currentButton;
+
+    Color currentColour = Color.white;
+    public Color CurrentColour
+    {
+        get
+        {
+            return currentColour;
+        }
+        set
+        {
+            currentColour = value;
+            previewRenderer.material.color = CurrentColour;
+        }
+    }
 
     ModifiableObject currentObject;
     public Transform objectParentTransform;
@@ -42,6 +59,8 @@ public class Pen : MonoBehaviour {
             line.material.mainTextureScale = new Vector2(100 * dashes, 1);
             isPointingAtObject = false;
         }
+
+        DoColour();
 	}
 
     void OnEnable()
@@ -84,8 +103,13 @@ public class Pen : MonoBehaviour {
     void GetPointedAt()
     {
         PrimitiveButton butt = hitInfo.transform.GetComponent<PrimitiveButton>();
-        if (butt != null)
+        if (butt)
         {
+            if (currentButton)
+            {
+                currentButton.Deselect();
+            }
+            currentButton = butt;
             currentPrimitiveType = butt.SelectType();
             DisplayPreview();
         }
@@ -108,11 +132,11 @@ public class Pen : MonoBehaviour {
         var spawnedPrimitive = GameObject.CreatePrimitive(currentPrimitiveType);
         spawnedPrimitive.transform.position = transform.position;
         spawnedPrimitive.transform.rotation = transform.rotation;
-
         spawnedPrimitive.transform.localScale = new Vector3(0.1f, 0.1f, 0.1f);
-
-        spawnedPrimitive.AddComponent<ModifiableObject>();
         spawnedPrimitive.transform.parent = objectParentTransform;
+
+        ModifiableObject mo = spawnedPrimitive.AddComponent<ModifiableObject>();
+        mo.Colour = CurrentColour;
     }
 
     public void DisplayPreview()
@@ -127,7 +151,25 @@ public class Pen : MonoBehaviour {
         preview.transform.localScale = new Vector3(0.1f, 0.1f, 0.1f);
         preview.transform.parent = transform;
 
-        Renderer renderer = preview.GetComponent<Renderer>();
-        renderer.material = previewMaterial;
+        previewRenderer = preview.GetComponent<Renderer>();
+        previewRenderer.material = previewMaterial;
+        previewRenderer.material.color = new Color(CurrentColour.r, CurrentColour.g, currentColour.b, previewMaterial.color.a);
+    }
+
+    void DoColour()
+    {
+        SteamVR_Controller.Device device = SteamVR_Controller.Input((int)controller.controllerIndex); //Get Controller
+        if (device.GetTouch(SteamVR_Controller.ButtonMask.Touchpad)) //If touched
+        {
+            Vector2 touchpad = device.GetAxis(EVRButtonId.k_EButton_SteamVR_Touchpad); //Get position on touchpad
+            float saturation = Mathf.Sqrt(touchpad.x * touchpad.x + touchpad.y * touchpad.y); //Dist from Centre
+            float angle = Mathf.Atan2(touchpad.x, touchpad.y);
+            if (angle < 0) //arctan is between -pi and pi
+            {
+                angle += 2 * Mathf.PI;
+            }
+            Color newCol = Color.HSVToRGB(angle / (2 * Mathf.PI), saturation, 1);
+            CurrentColour = new Color(newCol.r, newCol.g, newCol.b, 0.5f);
+        }   
     }
 }
